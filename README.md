@@ -11,7 +11,9 @@ npm install
 npm run dev
 ```
 
-Vite 개발 서버가 `/api` 요청을 `http://localhost:8080`으로 프록시합니다. 다른 백엔드 주소를 사용하려면 다음과 같이 실행하세요.
+Vite 개발 서버가 `/api`와 Google 로그인 시작 경로인 `/oauth2` 요청을 `http://localhost:8080`으로 프록시합니다. 다른 백엔드 주소를 사용하려면 다음과 같이 실행하세요.
+
+Google Cloud Console의 개발용 승인된 리디렉션 URI에는 `http://localhost:8080/login/oauth2/code/google`을 등록합니다.
 
 ```bash
 VITE_API_TARGET=http://localhost:9090 npm run dev

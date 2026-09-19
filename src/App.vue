@@ -1,5 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { getCurrentUser, logout, startGoogleLogin } from './api/auth'
+import { getDashboardSummary, getQuizAttempts, getWrongQuizzes } from './api/dashboard'
 
 const categories = ['전체', 'Greedy', 'DP', 'BFS', 'DFS']
 const difficulties = ['쉬움', '보통', '어려움']
@@ -14,6 +16,40 @@ const error = ref('')
 const result = ref(null)
 const activeTab = ref('problem')
 const showSolution = ref(false)
+const currentView = ref(new URLSearchParams(window.location.search).get('view') === 'dashboard' ? 'dashboard' : 'quiz')
+const currentUser = ref(null)
+const authLoading = ref(true)
+
+const dashboard = ref(null)
+const dashboardLoading = ref(false)
+const dashboardError = ref('')
+const attemptsPage = ref(null)
+const wrongPage = ref(null)
+const loadingAttempts = ref(false)
+const loadingWrong = ref(false)
+const categoryColors = ['#4ade80', '#60a5fa', '#c084fc', '#fbbf24', '#fb7185']
+
+const dashboardStats = computed(() => {
+  const summary = dashboard.value?.summary ?? {}
+  return [
+    { label: '푼 문제', value: summary.solvedCount ?? 0, unit: '문제', trend: signed(summary.solvedChange, ' 이번 주') },
+    { label: '정답률', value: round(summary.accuracyRate), unit: '%', trend: signed(summary.accuracyRateChange, '%') },
+    { label: '연속 학습', value: summary.currentStreakDays ?? 0, unit: '일', trend: `최고 ${summary.bestStreakDays ?? 0}일` },
+    { label: '학습 시간', value: round((summary.studyMinutes ?? 0) / 60, 1), unit: '시간', trend: '이번 달' },
+  ]
+})
+
+const categoryProgress = computed(() => (dashboard.value?.categoryStats ?? []).map((item, index) => ({
+  name: item.label || item.category,
+  solved: item.attemptedCount ?? 0,
+  correct: item.correctCount ?? 0,
+  color: categoryColors[index % categoryColors.length],
+})))
+
+const recentProblems = computed(() => (attemptsPage.value?.content ?? dashboard.value?.recentAttempts ?? []).map(mapAttempt))
+const wrongProblems = computed(() => wrongPage.value?.content ?? dashboard.value?.wrongQuizzes ?? [])
+const userNickname = computed(() => dashboard.value?.user?.nickname || '사용자')
+const weeklySolvedCount = computed(() => dashboard.value?.summary?.weeklySolvedCount ?? 0)
 
 const difficultyClass = computed(() => ({ '쉬움': 'easy', '보통': 'normal', '어려움': 'hard' })[difficulty.value])
 const isComplete = computed(() => quiz.value && answers.value.length === quiz.value.blankCount)
@@ -22,6 +58,108 @@ const filledCode = computed(() => {
   let index = 0
   return quiz.value.blankCode.replaceAll('<BLANK>', () => answers.value[index++] ?? '____')
 })
+
+function round(value = 0, digits = 0) {
+  const factor = 10 ** digits
+  return Math.round(Number(value) * factor) / factor
+}
+
+function signed(value, suffix = '') {
+  const number = Number(value ?? 0)
+  return `${number > 0 ? '+' : ''}${round(number, 1)}${suffix}`
+}
+
+function difficultyLabel(value) {
+  return ({ EASY: '쉬움', NORMAL: '보통', HARD: '어려움' })[value] || value
+}
+
+function formatAttemptedAt(value) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function mapAttempt(attempt) {
+  return {
+    ...attempt,
+    result: attempt.correct ? 'correct' : 'wrong',
+    difficultyLabel: difficultyLabel(attempt.difficulty),
+    date: formatAttemptedAt(attempt.attemptedAt),
+  }
+}
+
+async function loadDashboard() {
+  dashboardLoading.value = true
+  dashboardError.value = ''
+  attemptsPage.value = null
+  wrongPage.value = null
+  try {
+    dashboard.value = await getDashboardSummary()
+  } catch (requestError) {
+    dashboardError.value = requestError.status === 401
+      ? '로그인 후 학습 기록을 확인할 수 있습니다.'
+      : requestError.message
+  } finally {
+    dashboardLoading.value = false
+  }
+}
+
+async function loadCurrentUser() {
+  authLoading.value = true
+  try {
+    currentUser.value = await getCurrentUser()
+    if (currentView.value === 'dashboard' && currentUser.value.authenticated) await loadDashboard()
+  } catch (requestError) {
+    currentUser.value = { authenticated: false }
+    dashboardError.value = requestError.message
+  } finally {
+    authLoading.value = false
+  }
+}
+
+async function handleLogout() {
+  try {
+    await logout()
+    currentUser.value = { authenticated: false }
+    dashboard.value = null
+    attemptsPage.value = null
+    wrongPage.value = null
+    currentView.value = 'quiz'
+  } catch (requestError) {
+    error.value = requestError.message
+  }
+}
+
+async function loadAllAttempts() {
+  loadingAttempts.value = true
+  dashboardError.value = ''
+  try {
+    attemptsPage.value = await getQuizAttempts()
+  } catch (requestError) {
+    dashboardError.value = requestError.message
+  } finally {
+    loadingAttempts.value = false
+  }
+}
+
+async function loadAllWrongQuizzes() {
+  loadingWrong.value = true
+  dashboardError.value = ''
+  try {
+    wrongPage.value = await getWrongQuizzes()
+  } catch (requestError) {
+    dashboardError.value = requestError.message
+  } finally {
+    loadingWrong.value = false
+  }
+}
+
+watch(currentView, (view) => {
+  if (view === 'dashboard' && currentUser.value?.authenticated && !dashboard.value && !dashboardLoading.value) loadDashboard()
+})
+
+onMounted(loadCurrentUser)
 
 async function generateQuiz() {
   loading.value = true
@@ -89,13 +227,24 @@ async function checkAnswer() {
         <span>AlgoPoolja</span>
       </a>
       <nav aria-label="주 메뉴">
-        <a class="active" href="#workspace">문제 풀이</a>
-        <span>AI 알고리즘 퀴즈</span>
+        <button :class="{ active: currentView === 'quiz' }" @click="currentView = 'quiz'">문제 풀이</button>
+        <button :class="{ active: currentView === 'dashboard' }" @click="currentView = 'dashboard'">학습 대시보드</button>
       </nav>
-      <div class="server-state"><i></i> API 연결</div>
+      <div class="auth-area">
+        <span v-if="authLoading" class="auth-loading">로그인 확인 중…</span>
+        <template v-else-if="currentUser?.authenticated">
+          <img v-if="currentUser.picture" :src="currentUser.picture" alt="" referrerpolicy="no-referrer">
+          <span>{{ currentUser.nickname }}</span>
+          <button class="logout-button" @click="handleLogout">로그아웃</button>
+        </template>
+        <button v-else class="google-login" @click="startGoogleLogin">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4h5.4a4.6 4.6 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4L15.4 17c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.7A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.9A6 6 0 0 1 6 12c0-.7.1-1.3.4-1.9V7.4H3A10 10 0 0 0 2 12c0 1.7.4 3.2 1 4.6l3.4-2.7Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.9.5 3.9 1.5l2.9-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9 5.4l3.4 2.7A6 6 0 0 1 12 6Z"/></svg>
+          Google로 로그인
+        </button>
+      </div>
     </header>
 
-    <main id="workspace">
+    <main v-if="currentView === 'quiz'" id="workspace">
       <section class="generator-bar" aria-label="문제 생성 설정">
         <div class="generator-title">
           <span class="step-number">01</span>
@@ -230,6 +379,98 @@ async function checkAnswer() {
           <button class="primary-button start-button" @click="generateQuiz">첫 문제 생성하기 <span>→</span></button>
         </div>
       </section>
+    </main>
+
+    <main v-else class="dashboard" id="dashboard">
+      <section v-if="authLoading" class="loading-stage dashboard-loading" aria-live="polite">
+        <div class="loader-orbit"><span></span></div>
+        <strong>로그인 정보를 확인하고 있습니다</strong>
+      </section>
+      <section v-else-if="!currentUser?.authenticated" class="auth-required">
+        <span class="brand-mark">A</span>
+        <h1>로그인하고 학습 기록을 확인하세요.</h1>
+        <p>풀이 기록, 오답 노트, 유형별 정답률을 계정에 안전하게 저장합니다.</p>
+        <button class="google-login large" @click="startGoogleLogin">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.5-.2-2.2H12v4h5.4a4.6 4.6 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4L15.4 17c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.7A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.9A6 6 0 0 1 6 12c0-.7.1-1.3.4-1.9V7.4H3A10 10 0 0 0 2 12c0 1.7.4 3.2 1 4.6l3.4-2.7Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.9.5 3.9 1.5l2.9-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9 5.4l3.4 2.7A6 6 0 0 1 12 6Z"/></svg>
+          Google로 계속하기
+        </button>
+      </section>
+      <template v-else>
+      <div v-if="dashboardError" class="alert error-alert" role="alert">
+        <strong>대시보드를 불러오지 못했습니다.</strong><span>{{ dashboardError }}</span>
+        <button aria-label="다시 시도" @click="loadDashboard">↻</button>
+      </div>
+
+      <section v-if="dashboardLoading" class="loading-stage dashboard-loading" aria-live="polite">
+        <div class="loader-orbit"><span></span></div>
+        <strong>학습 기록을 불러오고 있습니다</strong>
+      </section>
+
+      <template v-else>
+      <section class="dashboard-hero">
+        <div>
+          <span class="eyebrow">MY LEARNING REPORT</span>
+          <h1>안녕하세요, <em>{{ userNickname }} 님.</em></h1>
+          <p>이번 주에는 {{ weeklySolvedCount }}문제를 풀었어요. 꾸준한 학습 기록을 이어가 보세요.</p>
+        </div>
+        <button class="primary-button" @click="currentView = 'quiz'">오늘의 문제 풀기 <span>→</span></button>
+      </section>
+
+      <section class="stat-grid" aria-label="학습 요약">
+        <article v-for="stat in dashboardStats" :key="stat.label" class="stat-card">
+          <div><span>{{ stat.label }}</span><small>{{ stat.trend }}</small></div>
+          <strong>{{ stat.value }}<em>{{ stat.unit }}</em></strong>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-card progress-card">
+          <div class="card-heading">
+            <div><span class="step-number">01</span><div><strong>유형별 성취도</strong><small>최근 30일 학습 기록</small></div></div>
+            <span class="card-note">정답 / 풀이</span>
+          </div>
+          <div class="progress-list">
+            <div v-for="item in categoryProgress" :key="item.name" class="progress-row">
+              <strong>{{ item.name }}</strong>
+              <div class="progress-track"><i :style="{ width: `${item.solved ? item.correct / item.solved * 100 : 0}%`, background: item.color }"></i></div>
+              <span>{{ item.correct }} / {{ item.solved }}</span>
+            </div>
+            <p v-if="!categoryProgress.length" class="dashboard-empty">아직 유형별 학습 기록이 없습니다.</p>
+          </div>
+        </article>
+
+        <article class="dashboard-card retry-card">
+          <div class="card-heading">
+            <div><span class="step-number">02</span><div><strong>다시 풀어볼 문제</strong><small>최근 틀린 문제 {{ wrongProblems.length }}개</small></div></div>
+            <button class="text-button" :disabled="loadingWrong" @click="loadAllWrongQuizzes">{{ loadingWrong ? '불러오는 중…' : '전체 보기' }}</button>
+          </div>
+          <div class="retry-list">
+            <button v-for="problem in wrongProblems" :key="problem.quizId" @click="currentView = 'quiz'">
+              <span class="retry-icon">!</span>
+              <div><strong>{{ problem.title }}</strong><small>{{ problem.category }} · {{ difficultyLabel(problem.difficulty) }}</small></div>
+              <span>다시 풀기 →</span>
+            </button>
+          </div>
+          <div v-if="!wrongProblems.length" class="retry-empty"><span>✓</span><p>복습할 오답 문제가 없습니다.<br>새로운 문제에 도전해 보세요.</p></div>
+        </article>
+
+        <article class="dashboard-card history-card">
+          <div class="card-heading">
+            <div><span class="step-number">03</span><div><strong>최근 풀이 기록</strong><small>맞힌 문제와 틀린 문제를 한눈에 확인하세요</small></div></div>
+            <button class="text-button" :disabled="loadingAttempts" @click="loadAllAttempts">{{ loadingAttempts ? '불러오는 중…' : '전체 기록' }}</button>
+          </div>
+          <div class="history-table">
+            <div class="history-head"><span>문제</span><span>유형</span><span>난이도</span><span>결과</span><span>풀이 시각</span></div>
+            <div v-for="problem in recentProblems" :key="problem.attemptId" class="history-row">
+              <strong>{{ problem.title }}</strong><span>{{ problem.category }}</span><span>{{ problem.difficultyLabel }}</span>
+              <b :class="problem.result">{{ problem.result === 'correct' ? '정답' : '오답' }}</b><time>{{ problem.date }}</time>
+            </div>
+            <p v-if="!recentProblems.length" class="dashboard-empty">아직 풀이 기록이 없습니다.</p>
+          </div>
+        </article>
+      </section>
+      </template>
+      </template>
     </main>
 
     <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><small>Spring AI · Vue.js</small></footer>
