@@ -5,14 +5,14 @@ async function parse(response) {
 }
 
 export async function getCurrentUser() {
-  return parse(await fetch('/api/auth/me', {
+  return parse(await fetch(apiUrl('/api/auth/me'), {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   }))
 }
 
 export async function logout() {
-  const response = await fetch('/api/auth/logout', {
+  const response = await fetch(apiUrl('/api/auth/logout'), {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json' },
@@ -21,5 +21,6 @@ export async function logout() {
 }
 
 export function startGoogleLogin() {
-  window.location.assign('/oauth2/authorization/google')
+  window.location.assign(apiUrl('/oauth2/authorization/google'))
 }
+import { apiUrl } from './client'

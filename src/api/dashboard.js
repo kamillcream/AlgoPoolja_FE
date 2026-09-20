@@ -8,7 +8,7 @@ function toQuery(params) {
 
 async function get(path, params = {}) {
   const query = toQuery(params)
-  const response = await fetch(`${path}${query ? `?${query}` : ''}`, {
+  const response = await fetch(`${apiUrl(path)}${query ? `?${query}` : ''}`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
@@ -53,3 +53,4 @@ export function getWrongQuizzes(params = {}) {
     ...params,
   })
 }
+import { apiUrl } from './client'
