@@ -25,5 +25,5 @@ VITE_API_TARGET=http://localhost:9090 npm run dev
 npm run build
 ```
 
-프로덕션 API 기본 주소는 `.env.production`의 `VITE_API_BASE_URL`로 설정하며, 현재 Cloud Run 백엔드를 사용합니다.
+프로덕션 API 기본 주소는 `.env.production`의 `VITE_API_BASE_URL`로 설정하며, 현재 `https://api.algopoolja.com`을 사용합니다.
 # AlgoPoolja_FE
