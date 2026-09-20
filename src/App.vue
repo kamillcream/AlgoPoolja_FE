@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { getCurrentUser, logout, startGoogleLogin } from './api/auth'
-import { apiUrl } from './api/client'
+import { apiFetch } from './api/client'
 import { getDashboardSummary, getQuizAttempts, getWrongQuizzes } from './api/dashboard'
 
 const categories = ['전체', 'Greedy', 'DP', 'BFS', 'DFS']
@@ -169,9 +169,8 @@ async function generateQuiz() {
   showSolution.value = false
 
   try {
-    const response = await fetch(apiUrl('/api/quizzes'), {
+    const response = await apiFetch('/api/quizzes', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: category.value, difficulty: difficulty.value }),
     })
@@ -205,9 +204,8 @@ async function checkAnswer() {
   error.value = ''
 
   try {
-    const response = await fetch(apiUrl(`/api/quizzes/${quiz.value.quizId}/check`), {
+    const response = await apiFetch(`/api/quizzes/${quiz.value.quizId}/check`, {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers: answers.value }),
     })

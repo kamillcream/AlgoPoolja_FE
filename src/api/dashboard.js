@@ -1,3 +1,5 @@
+import { apiFetch } from './client'
+
 function toQuery(params) {
   const query = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -8,8 +10,7 @@ function toQuery(params) {
 
 async function get(path, params = {}) {
   const query = toQuery(params)
-  const response = await fetch(`${apiUrl(path)}${query ? `?${query}` : ''}`, {
-    credentials: 'include',
+  const response = await apiFetch(`${path}${query ? `?${query}` : ''}`, {
     headers: { Accept: 'application/json' },
   })
   const body = await response.json().catch(() => ({}))
@@ -53,4 +54,3 @@ export function getWrongQuizzes(params = {}) {
     ...params,
   })
 }
-import { apiUrl } from './client'
