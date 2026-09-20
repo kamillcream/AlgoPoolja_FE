@@ -473,6 +473,6 @@ async function checkAnswer() {
       </template>
     </main>
 
-    <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><small>Spring AI · Vue.js</small></footer>
+    <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><nav class="policy-links"><a href="/privacy">개인정보처리방침</a><a href="/terms">서비스 이용약관</a></nav><small>Spring AI · Vue.js</small></footer>
   </div>
 </template>
