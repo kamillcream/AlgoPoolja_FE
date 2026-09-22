@@ -28,6 +28,8 @@ const attemptsPage = ref(null)
 const wrongPage = ref(null)
 const loadingAttempts = ref(false)
 const loadingWrong = ref(false)
+const retryingQuizId = ref(null)
+const quizStartedAt = ref(null)
 const categoryColors = ['#4ade80', '#60a5fa', '#c084fc', '#fbbf24', '#fb7185']
 
 const dashboardStats = computed(() => {
@@ -178,12 +180,38 @@ async function generateQuiz() {
     if (!response.ok) throw new Error(body.message || '문제를 생성하지 못했습니다.')
 
     quiz.value = body
+    quizStartedAt.value = new Date().toISOString()
     answers.value = []
     activeTab.value = 'problem'
   } catch (requestError) {
     error.value = requestError.message || '서버에 연결할 수 없습니다.'
   } finally {
     loading.value = false
+  }
+}
+
+async function openWrongQuiz(problem) {
+  retryingQuizId.value = problem.quizId
+  dashboardError.value = ''
+
+  try {
+    const response = await apiFetch(`/api/quizzes/${problem.quizId}`)
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.message || '오답 문제를 불러오지 못했습니다.')
+
+    quiz.value = body
+    category.value = categories.includes(body.category) ? body.category : category.value
+    difficulty.value = difficulties.includes(body.difficulty) ? body.difficulty : difficulty.value
+    answers.value = []
+    result.value = null
+    showSolution.value = false
+    activeTab.value = 'problem'
+    quizStartedAt.value = new Date().toISOString()
+    currentView.value = 'quiz'
+  } catch (requestError) {
+    dashboardError.value = requestError.message || '오답 문제를 불러오지 못했습니다.'
+  } finally {
+    retryingQuizId.value = null
   }
 }
 
@@ -207,11 +235,16 @@ async function checkAnswer() {
     const response = await apiFetch(`/api/quizzes/${quiz.value.quizId}/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answers.value }),
+      body: JSON.stringify({ answers: answers.value, startedAt: quizStartedAt.value }),
     })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(body.message || '채점하지 못했습니다.')
     result.value = body
+    if (body.correct) {
+      dashboard.value = null
+      attemptsPage.value = null
+      wrongPage.value = null
+    }
   } catch (requestError) {
     error.value = requestError.message || '서버에 연결할 수 없습니다.'
   } finally {
@@ -446,10 +479,10 @@ async function checkAnswer() {
             <button class="text-button" :disabled="loadingWrong" @click="loadAllWrongQuizzes">{{ loadingWrong ? '불러오는 중…' : '전체 보기' }}</button>
           </div>
           <div class="retry-list">
-            <button v-for="problem in wrongProblems" :key="problem.quizId" @click="currentView = 'quiz'">
+            <button v-for="problem in wrongProblems" :key="problem.quizId" :disabled="retryingQuizId === problem.quizId" @click="openWrongQuiz(problem)">
               <span class="retry-icon">!</span>
               <div><strong>{{ problem.title }}</strong><small>{{ problem.category }} · {{ difficultyLabel(problem.difficulty) }}</small></div>
-              <span>다시 풀기 →</span>
+              <span>{{ retryingQuizId === problem.quizId ? '불러오는 중…' : '다시 풀기 →' }}</span>
             </button>
           </div>
           <div v-if="!wrongProblems.length" class="retry-empty"><span>✓</span><p>복습할 오답 문제가 없습니다.<br>새로운 문제에 도전해 보세요.</p></div>
