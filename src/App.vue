@@ -401,9 +401,27 @@ async function checkAnswer() {
               <button class="submit-button" :disabled="!isComplete || checking" @click="checkAnswer">{{ checking ? '채점 중…' : '정답 제출' }}</button>
             </div>
 
+            <details class="hint">
+              <summary>힌트 보기</summary>
+              <p>{{ quiz.hint || '문제의 입력 크기와 자료구조 선택을 먼저 확인해보세요.' }}</p>
+            </details>
+
             <details class="solution" @toggle="showSolution = $event.target.open">
               <summary>{{ showSolution ? '정답 코드 접기' : '정답 코드 보기' }}</summary>
               <pre><code>{{ quiz.answerCode }}</code></pre>
+              <div class="explanation">
+                <h3>풀이 과정</h3>
+                <p>{{ quiz.explanation || '풀이 설명이 준비되지 않았습니다.' }}</p>
+                <p v-if="quiz.algorithm"><strong>핵심 알고리즘</strong> {{ quiz.algorithm }}</p>
+                <div class="complexity" v-if="quiz.timeComplexity || quiz.spaceComplexity">
+                  <span v-if="quiz.timeComplexity"><strong>시간</strong> {{ quiz.timeComplexity }}</span>
+                  <span v-if="quiz.spaceComplexity"><strong>공간</strong> {{ quiz.spaceComplexity }}</span>
+                </div>
+                <template v-if="quiz.commonMistakes?.length">
+                  <h3>자주 하는 실수</h3>
+                  <ul><li v-for="mistake in quiz.commonMistakes" :key="mistake">{{ mistake }}</li></ul>
+                </template>
+              </div>
             </details>
           </div>
         </section>
