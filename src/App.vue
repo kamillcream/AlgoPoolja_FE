@@ -13,6 +13,7 @@ const difficulties = ['쉬움', '보통', '어려움']
 
 const category = ref('전체')
 const difficulty = ref('보통')
+const language = ref('ko')
 const quiz = ref(null)
 const answers = ref([])
 const loading = ref(false)
@@ -178,7 +179,7 @@ async function generateQuiz() {
     const response = await apiFetch('/api/quizzes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: category.value, difficulty: difficulty.value }),
+      body: JSON.stringify({ category: category.value, difficulty: difficulty.value, language: language.value }),
     })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(body.message || '문제를 생성하지 못했습니다.')
@@ -306,6 +307,13 @@ async function checkAnswer() {
           <span>난이도</span>
           <select v-model="difficulty" :disabled="loading || authLoading || !currentUser?.authenticated">
             <option v-for="item in difficulties" :key="item">{{ item }}</option>
+          </select>
+        </label>
+        <label>
+          <span>언어</span>
+          <select v-model="language" :disabled="loading || authLoading || !currentUser?.authenticated">
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
           </select>
         </label>
         <button class="primary-button" :disabled="loading || authLoading" @click="startQuiz">
