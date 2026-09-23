@@ -190,6 +190,14 @@ async function generateQuiz() {
   }
 }
 
+function startQuiz() {
+  if (!currentUser.value?.authenticated) {
+    startGoogleLogin()
+    return
+  }
+  generateQuiz()
+}
+
 async function openWrongQuiz(problem) {
   retryingQuizId.value = problem.quizId
   dashboardError.value = ''
@@ -286,19 +294,19 @@ async function checkAnswer() {
         </div>
         <label>
           <span>알고리즘</span>
-          <select v-model="category" :disabled="loading">
+          <select v-model="category" :disabled="loading || authLoading || !currentUser?.authenticated">
             <option v-for="item in categories" :key="item">{{ item }}</option>
           </select>
         </label>
         <label>
           <span>난이도</span>
-          <select v-model="difficulty" :disabled="loading">
+          <select v-model="difficulty" :disabled="loading || authLoading || !currentUser?.authenticated">
             <option v-for="item in difficulties" :key="item">{{ item }}</option>
           </select>
         </label>
-        <button class="primary-button" :disabled="loading" @click="generateQuiz">
+        <button class="primary-button" :disabled="loading || authLoading" @click="startQuiz">
           <span v-if="loading" class="spinner"></span>
-          {{ loading ? '문제 생성 중…' : quiz ? '다른 문제 생성' : '문제 생성' }}
+          {{ loading ? '문제 생성 중…' : !currentUser?.authenticated ? '로그인 후 문제 생성' : quiz ? '다른 문제 생성' : '문제 생성' }}
         </button>
       </section>
 
@@ -410,7 +418,7 @@ async function checkAnswer() {
           <span class="eyebrow">AI GENERATED CHALLENGE</span>
           <h1>코드를 읽고,<br><em>빈칸을 완성하세요.</em></h1>
           <p>알고리즘 유형과 난이도를 선택하면 새로운 문제와 코드 블록 퀴즈를 생성합니다.</p>
-          <button class="primary-button start-button" @click="generateQuiz">첫 문제 생성하기 <span>→</span></button>
+          <button class="primary-button start-button" :disabled="authLoading" @click="startQuiz">{{ currentUser?.authenticated ? '첫 문제 생성하기' : 'Google 로그인 후 시작하기' }} <span>→</span></button>
         </div>
       </section>
     </main>
