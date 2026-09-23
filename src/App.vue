@@ -4,7 +4,11 @@ import { getCurrentUser, logout, startGoogleLogin } from './api/auth'
 import { apiFetch } from './api/client'
 import { getDashboardSummary, getQuizAttempts, getWrongQuizzes } from './api/dashboard'
 
-const categories = ['전체', 'Greedy', 'DP', 'BFS', 'DFS']
+const categories = [
+  '전체', '구현/시뮬레이션', '스택/큐', '해시/정렬', '이분 탐색',
+  '힙/우선순위 큐', '완전탐색/백트래킹', '그래프', '문자열/파싱',
+  'Greedy', 'DP', 'BFS', 'DFS',
+]
 const difficulties = ['쉬움', '보통', '어려움']
 
 const category = ref('전체')
