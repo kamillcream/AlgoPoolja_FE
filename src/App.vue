@@ -10,9 +10,16 @@ const categories = [
   'Greedy', 'DP', 'BFS', 'DFS',
 ]
 const difficulties = ['쉬움', '보통', '어려움']
+const languages = [
+  { value: 'PYTHON', label: 'Python 3' },
+  { value: 'JAVASCRIPT', label: 'JavaScript (Node.js)' },
+  { value: 'JAVA', label: 'Java 17' },
+  { value: 'CPP', label: 'C++17' },
+]
 
 const category = ref('전체')
 const difficulty = ref('보통')
+const language = ref('PYTHON')
 const quiz = ref(null)
 const answers = ref([])
 const loading = ref(false)
@@ -59,6 +66,7 @@ const userNickname = computed(() => dashboard.value?.user?.nickname || '사용�
 const weeklySolvedCount = computed(() => dashboard.value?.summary?.weeklySolvedCount ?? 0)
 
 const difficultyClass = computed(() => ({ '쉬움': 'easy', '보통': 'normal', '어려움': 'hard' })[difficulty.value])
+const languageLabel = computed(() => languages.find((item) => item.value === (quiz.value?.language || language.value))?.label || language.value)
 const isComplete = computed(() => quiz.value && answers.value.length === quiz.value.blankCount)
 const filledCode = computed(() => {
   if (!quiz.value) return ''
@@ -178,12 +186,13 @@ async function generateQuiz() {
     const response = await apiFetch('/api/quizzes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: category.value, difficulty: difficulty.value }),
+      body: JSON.stringify({ category: category.value, difficulty: difficulty.value, language: language.value }),
     })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(body.message || '문제를 생성하지 못했습니다.')
 
     quiz.value = body
+    language.value = body.language || language.value
     quizStartedAt.value = new Date().toISOString()
     answers.value = []
     activeTab.value = 'problem'
@@ -214,6 +223,7 @@ async function openWrongQuiz(problem) {
     quiz.value = body
     category.value = categories.includes(body.category) ? body.category : category.value
     difficulty.value = difficulties.includes(body.difficulty) ? body.difficulty : difficulty.value
+    language.value = body.language || language.value
     answers.value = []
     result.value = null
     showSolution.value = false
@@ -308,6 +318,12 @@ async function checkAnswer() {
             <option v-for="item in difficulties" :key="item">{{ item }}</option>
           </select>
         </label>
+        <label>
+          <span>언어</span>
+          <select v-model="language" :disabled="loading || authLoading || !currentUser?.authenticated">
+            <option v-for="item in languages" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </label>
         <button class="primary-button" :disabled="loading || authLoading" @click="startQuiz">
           <span v-if="loading" class="spinner"></span>
           {{ loading ? '문제 생성 중…' : !currentUser?.authenticated ? '로그인 후 문제 생성' : quiz ? '다른 문제 생성' : '문제 생성' }}
@@ -364,7 +380,7 @@ async function checkAnswer() {
 
         <section class="solver-panel">
           <div class="editor-head">
-            <div><span class="language-dot"></span><strong>Python 3</strong></div>
+            <div><span class="language-dot"></span><strong>{{ languageLabel }}</strong></div>
             <span>{{ answers.length }} / {{ quiz.blankCount }} 완성</span>
           </div>
           <div class="code-editor">
