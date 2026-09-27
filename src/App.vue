@@ -67,11 +67,13 @@ const weeklySolvedCount = computed(() => dashboard.value?.summary?.weeklySolvedC
 
 const difficultyClass = computed(() => ({ '쉬움': 'easy', '보통': 'normal', '어려움': 'hard' })[difficulty.value])
 const languageLabel = computed(() => languages.find((item) => item.value === (quiz.value?.language || language.value))?.label || language.value)
-const isComplete = computed(() => quiz.value && answers.value.length === quiz.value.blankCount)
+const isComplete = computed(() => quiz.value
+  && answers.value.length === quiz.value.blankCount
+  && answers.value.every((answer) => answer.trim().length > 0))
 const filledCode = computed(() => {
   if (!quiz.value) return ''
   let index = 0
-  return quiz.value.blankCode.replaceAll('<BLANK>', () => answers.value[index++] ?? '____')
+  return quiz.value.blankCode.replaceAll('<BLANK>', () => answers.value[index++]?.trim() || '____')
 })
 
 function round(value = 0, digits = 0) {
@@ -194,7 +196,7 @@ async function generateQuiz() {
     quiz.value = body
     language.value = body.language || language.value
     quizStartedAt.value = new Date().toISOString()
-    answers.value = []
+    answers.value = Array.from({ length: body.blankCount }, () => '')
     activeTab.value = 'problem'
   } catch (requestError) {
     error.value = requestError.message || '서버에 연결할 수 없습니다.'
@@ -224,7 +226,7 @@ async function openWrongQuiz(problem) {
     category.value = categories.includes(body.category) ? body.category : category.value
     difficulty.value = difficulties.includes(body.difficulty) ? body.difficulty : difficulty.value
     language.value = body.language || language.value
-    answers.value = []
+    answers.value = Array.from({ length: body.blankCount }, () => '')
     result.value = null
     showSolution.value = false
     activeTab.value = 'problem'
@@ -237,14 +239,14 @@ async function openWrongQuiz(problem) {
   }
 }
 
-function selectAnswer(block) {
-  if (!quiz.value || answers.value.length >= quiz.value.blankCount) return
-  answers.value.push(block)
+function updateAnswer(index, value) {
+  answers.value[index] = value
   result.value = null
 }
 
-function removeAnswer(index) {
-  answers.value.splice(index, 1)
+function resetAnswers() {
+  if (!quiz.value) return
+  answers.value = Array.from({ length: quiz.value.blankCount }, () => '')
   result.value = null
 }
 
@@ -257,7 +259,7 @@ async function checkAnswer() {
     const response = await apiFetch(`/api/quizzes/${quiz.value.quizId}/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answers.value, startedAt: quizStartedAt.value }),
+      body: JSON.stringify({ answers: answers.value.map((answer) => answer.trim()), startedAt: quizStartedAt.value }),
     })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(body.message || '채점하지 못했습니다.')
@@ -390,29 +392,29 @@ async function checkAnswer() {
 
           <div class="answer-dock">
             <div class="dock-heading">
-              <div><span class="step-number">02</span><div><strong>코드 블록 선택</strong><small>빈칸 순서대로 선택하세요</small></div></div>
-              <button v-if="answers.length" class="text-button" @click="answers = []; result = null">초기화</button>
+              <div><span class="step-number">02</span><div><strong>단답형 입력</strong><small>빈칸 순서대로 코드 조각을 직접 입력하세요</small></div></div>
+              <button v-if="answers.some((answer) => answer)" class="text-button" @click="resetAnswers">초기화</button>
             </div>
 
-            <div class="slots" :aria-label="`선택한 답 ${answers.length}개`">
-              <button v-for="index in quiz.blankCount" :key="index" :class="['answer-slot', { filled: answers[index - 1] }]" @click="answers[index - 1] && removeAnswer(index - 1)">
-                <span>{{ index }}</span><code>{{ answers[index - 1] || '선택 대기' }}</code><b v-if="answers[index - 1]">×</b>
-              </button>
+            <div class="answer-inputs" aria-label="빈칸 답안 입력">
+              <label v-for="index in quiz.blankCount" :key="index" class="answer-input">
+                <span>{{ index }}</span>
+                <input
+                  :value="answers[index - 1]"
+                  :placeholder="`빈칸 ${index}의 코드 조각`"
+                  autocomplete="off"
+                  spellcheck="false"
+                  @input="updateAnswer(index - 1, $event.target.value)"
+                >
+              </label>
             </div>
-
-            <div class="block-pool">
-              <button v-for="(block, index) in quiz.answerBlocks" :key="`${block}-${index}`" :disabled="answers.length >= quiz.blankCount" @click="selectAnswer(block)">
-                <code>{{ block }}</code><span>+</span>
-              </button>
-            </div>
-
             <div v-if="result" :class="['result-box', result.correct ? 'correct' : 'wrong']" role="status">
               <span>{{ result.correct ? '✓' : '!' }}</span>
               <div><strong>{{ result.correct ? '정답입니다' : '아직 정답이 아닙니다' }}</strong><p>{{ result.message }}</p></div>
             </div>
 
             <div class="submit-row">
-              <span v-if="!isComplete">빈칸 {{ quiz.blankCount - answers.length }}개가 남았습니다.</span>
+              <span v-if="!isComplete">빈칸 {{ answers.filter((answer) => !answer.trim()).length }}개가 남았습니다.</span>
               <span v-else>모든 빈칸을 채웠습니다.</span>
               <button class="submit-button" :disabled="!isComplete || checking" @click="checkAnswer">{{ checking ? '채점 중…' : '정답 제출' }}</button>
             </div>
@@ -556,3 +558,55 @@ async function checkAnswer() {
     <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><nav class="policy-links"><a href="/privacy">개인정보처리방침</a><a href="/terms">서비스 이용약관</a></nav><small>Spring AI · Vue.js</small></footer>
   </div>
 </template>
+
+<style scoped>
+.answer-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 15px 0 18px;
+}
+
+.answer-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  background: #111419;
+  border: 1px solid #363d47;
+  border-radius: 5px;
+}
+
+.answer-input > span {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  background: #262c34;
+  color: #8e97a4;
+  font: .65rem var(--mono);
+  flex: 0 0 auto;
+}
+
+.answer-input input {
+  min-width: 0;
+  width: 100%;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: #dce3df;
+  background: transparent;
+  font: .72rem var(--mono);
+}
+
+.answer-input:focus-within {
+  border-color: var(--bright);
+  box-shadow: 0 0 0 1px var(--bright);
+}
+
+.answer-input input::placeholder {
+  color: #666e79;
+}
+</style>
