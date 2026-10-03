@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { getCurrentUser, logout, startGoogleLogin } from './api/auth'
 import { apiFetch } from './api/client'
 import { getDashboardSummary, getQuizAttempts, getWrongQuizzes } from './api/dashboard'
+import logoUrl from './assets/algopoolja_logo.png'
 
 const categories = [
   '전체', '구현/시뮬레이션', '스택/큐', '해시/정렬', '이분 탐색',
@@ -297,7 +298,7 @@ async function checkAnswer() {
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="AlgoPoolja 홈">
-        <span class="brand-mark">A</span>
+        <img class="brand-logo" :src="logoUrl" alt="">
         <span>AlgoPoolja</span>
       </a>
       <nav aria-label="주 메뉴">
@@ -486,7 +487,7 @@ async function checkAnswer() {
         <strong>로그인 정보를 확인하고 있습니다</strong>
       </section>
       <section v-else-if="!currentUser?.authenticated" class="auth-required">
-        <span class="brand-mark">A</span>
+        <img class="brand-logo auth-logo" :src="logoUrl" alt="">
         <h1>로그인하고 학습 기록을 확인하세요.</h1>
         <p>풀이 기록, 오답 노트, 유형별 정답률을 계정에 안전하게 저장합니다.</p>
         <button class="google-login large" @click="startGoogleLogin">
@@ -578,7 +579,7 @@ async function checkAnswer() {
         <strong>랭킹을 불러오고 있습니다</strong>
       </section>
       <section v-else-if="!currentUser?.authenticated" class="auth-required">
-        <span class="brand-mark">A</span>
+        <img class="brand-logo auth-logo" :src="logoUrl" alt="">
         <h1>로그인하고 주간 랭킹을 확인하세요.</h1>
         <p>이번 주 학습 성과를 다른 사용자와 비교해 보세요.</p>
         <button class="google-login large" @click="startGoogleLogin">Google로 계속하기</button>
@@ -617,11 +618,25 @@ async function checkAnswer() {
       </template>
     </main>
 
-    <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><nav class="policy-links"><a href="/privacy">개인정보처리방침</a><a href="/terms">서비스 이용약관</a></nav><small>Spring AI · Vue.js</small></footer>
+    <footer><span>AlgoPoolja</span><p>AI로 연습하는 알고리즘 코드 퀴즈</p><nav class="policy-links"><a href="/privacy">개인정보처리방침</a><a href="/terms">서비스 이용약관</a></nav></footer>
   </div>
 </template>
 
 <style scoped>
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
+  border-radius: 7px;
+}
+
+.auth-logo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 24px;
+}
+
 .answer-inputs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import logoUrl from './assets/algopoolja_logo.png'
 
 const props = defineProps({ type: { type: String, required: true } })
 const isPrivacy = computed(() => props.type === 'privacy')
@@ -9,7 +10,7 @@ const isPrivacy = computed(() => props.type === 'privacy')
   <div class="legal-shell">
     <header class="legal-header">
       <a class="brand" href="/" aria-label="AlgoPoolja 홈">
-        <span class="brand-mark">A</span><span>AlgoPoolja</span>
+        <img class="brand-logo" :src="logoUrl" alt=""><span>AlgoPoolja</span>
       </a>
       <a href="/">서비스로 돌아가기 →</a>
     </header>
@@ -140,4 +141,14 @@ const isPrivacy = computed(() => props.type === 'privacy')
 
 <style scoped>
 .legal-shell{min-height:100vh;background:#0d0f12}.legal-header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 920px)/2));border-bottom:1px solid var(--border)}.legal-header>a:last-child{color:#8d95a1;text-decoration:none;font-size:.78rem}.legal-header>a:last-child:hover{color:#fff}.legal-page{width:min(800px,calc(100% - 40px));padding:72px 0 96px}.legal-page h1{margin:16px 0 18px;font-size:clamp(2.5rem,6vw,4.5rem);letter-spacing:-.06em}.legal-intro{max-width:650px;color:#b4bac3;font-size:1.05rem;line-height:1.8}.effective-date{margin:24px 0 55px;color:#69717d;font:.72rem var(--mono)}section{padding:30px 0;border-top:1px solid var(--border)}section h2{margin:0 0 16px;font-size:1.08rem}section p,section li{color:#aab1bc;font-size:.9rem;line-height:1.85}section p{margin:0 0 12px}section ul{margin:0 0 12px;padding-left:20px}section a{color:var(--bright)}.legal-footer{width:min(800px,calc(100% - 40px));min-height:86px}.legal-footer nav{display:flex;gap:18px;margin-left:auto}.legal-footer a{color:#7e8692;text-decoration:none}.legal-footer a:hover{color:#fff}@media(max-width:600px){.legal-header{padding:0 20px}.legal-page{padding-top:48px}.legal-footer{align-items:flex-start;flex-direction:column;justify-content:center}.legal-footer nav{margin-left:0}}
+</style>
+
+<style scoped>
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
+  border-radius: 7px;
+}
 </style>
