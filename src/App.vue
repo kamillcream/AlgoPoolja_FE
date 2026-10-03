@@ -28,7 +28,8 @@ const error = ref('')
 const result = ref(null)
 const activeTab = ref('problem')
 const showSolution = ref(false)
-const currentView = ref(new URLSearchParams(window.location.search).get('view') === 'dashboard' ? 'dashboard' : 'quiz')
+const initialView = new URLSearchParams(window.location.search).get('view')
+const currentView = ref(['dashboard', 'ranking'].includes(initialView) ? initialView : 'quiz')
 const currentUser = ref(null)
 const authLoading = ref(true)
 
@@ -49,7 +50,7 @@ const dashboardStats = computed(() => {
     { label: '푼 문제', value: summary.solvedCount ?? 0, unit: '문제', trend: signed(summary.solvedChange, ' 이번 주') },
     { label: '정답률', value: round(summary.accuracyRate), unit: '%', trend: signed(summary.accuracyRateChange, '%') },
     { label: '연속 학습', value: summary.currentStreakDays ?? 0, unit: '일', trend: `최고 ${summary.bestStreakDays ?? 0}일` },
-    { label: '학습 시간', value: round((summary.studyMinutes ?? 0) / 60, 1), unit: '시간', trend: '이번 달' },
+    { label: '학습 시간', value: formatStudyTime(summary.studyMinutes), unit: '', trend: '이번 달' },
   ]
 })
 
@@ -81,6 +82,15 @@ const filledCode = computed(() => {
 function round(value = 0, digits = 0) {
   const factor = 10 ** digits
   return Math.round(Number(value) * factor) / factor
+}
+
+function formatStudyTime(minutes) {
+  const totalMinutes = Math.max(0, Math.round(Number(minutes ?? 0)))
+  const hours = Math.floor(totalMinutes / 60)
+  const remainingMinutes = totalMinutes % 60
+  if (hours === 0) return `${remainingMinutes}분`
+  if (remainingMinutes === 0) return `${hours}시간`
+  return `${hours}시간 ${remainingMinutes}분`
 }
 
 function signed(value, suffix = '') {
@@ -132,7 +142,7 @@ async function loadCurrentUser() {
   authLoading.value = true
   try {
     currentUser.value = await getCurrentUser()
-    if (currentView.value === 'dashboard' && currentUser.value.authenticated) await loadDashboard()
+    if (['dashboard', 'ranking'].includes(currentView.value) && currentUser.value.authenticated) await loadDashboard()
   } catch (requestError) {
     currentUser.value = { authenticated: false }
     dashboardError.value = requestError.message
@@ -179,7 +189,7 @@ async function loadAllWrongQuizzes() {
 }
 
 watch(currentView, (view) => {
-  if (view === 'dashboard' && currentUser.value?.authenticated && !dashboard.value && !dashboardLoading.value) loadDashboard()
+  if (['dashboard', 'ranking'].includes(view) && currentUser.value?.authenticated && !dashboard.value && !dashboardLoading.value) loadDashboard()
 })
 
 onMounted(loadCurrentUser)
@@ -293,6 +303,7 @@ async function checkAnswer() {
       <nav aria-label="주 메뉴">
         <button :class="{ active: currentView === 'quiz' }" @click="currentView = 'quiz'">문제 풀이</button>
         <button :class="{ active: currentView === 'dashboard' }" @click="currentView = 'dashboard'">학습 대시보드</button>
+        <button :class="{ active: currentView === 'ranking' }" @click="currentView = 'ranking'">주간 랭킹</button>
       </nav>
       <div class="auth-area">
         <span v-if="authLoading" class="auth-loading">로그인 확인 중…</span>
@@ -469,7 +480,7 @@ async function checkAnswer() {
       </section>
     </main>
 
-    <main v-else class="dashboard" id="dashboard">
+    <main v-else-if="currentView === 'dashboard'" class="dashboard" id="dashboard">
       <section v-if="authLoading" class="loading-stage dashboard-loading" aria-live="polite">
         <div class="loader-orbit"><span></span></div>
         <strong>로그인 정보를 확인하고 있습니다</strong>
@@ -512,27 +523,6 @@ async function checkAnswer() {
       </section>
 
       <section class="dashboard-grid">
-        <article class="dashboard-card ranking-card">
-          <div class="card-heading">
-            <div><span class="step-number">01</span><div><strong>주간 랭킹</strong><small>최근 7일 동안 맞힌 문제 기준</small></div></div>
-            <span class="card-note">TOP 10</span>
-          </div>
-          <div v-if="myWeeklyRanking" class="my-ranking">
-            <span>내 순위 <b>{{ myWeeklyRanking.rank }}위</b></span>
-            <span>{{ myWeeklyRanking.solvedCount }}문제 해결</span>
-            <span v-if="myWeeklyRanking.badge !== 'NONE'" :class="['badge', myWeeklyRanking.badge.toLowerCase()]">{{ badgeLabel(myWeeklyRanking.badge) }}</span>
-          </div>
-          <div class="ranking-list">
-            <div v-for="item in weeklyRankings" :key="item.userId" class="ranking-row" :class="{ current: item.userId === currentUser?.userId }">
-              <strong class="ranking-position">{{ item.rank }}</strong>
-              <span class="ranking-medal">{{ item.badge === 'GOLD' ? '🏆' : item.badge === 'SILVER' ? '🥈' : item.badge === 'BRONZE' ? '🥉' : '·' }}</span>
-              <div><b>{{ item.nickname }}</b><small>{{ item.solvedCount }}문제 해결 · 정답률 {{ round(item.accuracyRate) }}%</small></div>
-              <span v-if="item.badge !== 'NONE'" :class="['badge', item.badge.toLowerCase()]">{{ badgeLabel(item.badge) }}</span>
-            </div>
-            <p v-if="!weeklyRankings.length" class="dashboard-empty">이번 주 랭킹 데이터가 아직 없습니다.</p>
-          </div>
-        </article>
-
         <article class="dashboard-card progress-card">
           <div class="card-heading">
             <div><span class="step-number">01</span><div><strong>유형별 성취도</strong><small>최근 30일 학습 기록</small></div></div>
@@ -579,6 +569,51 @@ async function checkAnswer() {
         </article>
       </section>
       </template>
+      </template>
+    </main>
+
+    <main v-else class="ranking-page" id="ranking">
+      <section v-if="authLoading" class="loading-stage dashboard-loading" aria-live="polite">
+        <div class="loader-orbit"><span></span></div>
+        <strong>랭킹을 불러오고 있습니다</strong>
+      </section>
+      <section v-else-if="!currentUser?.authenticated" class="auth-required">
+        <span class="brand-mark">A</span>
+        <h1>로그인하고 주간 랭킹을 확인하세요.</h1>
+        <p>이번 주 학습 성과를 다른 사용자와 비교해 보세요.</p>
+        <button class="google-login large" @click="startGoogleLogin">Google로 계속하기</button>
+      </section>
+      <template v-else>
+        <section v-if="dashboardLoading" class="loading-stage dashboard-loading" aria-live="polite">
+          <div class="loader-orbit"><span></span></div>
+          <strong>주간 랭킹을 불러오고 있습니다</strong>
+        </section>
+        <section v-else class="ranking-page-content">
+          <div class="dashboard-hero">
+            <div>
+              <span class="eyebrow">WEEKLY RANKING</span>
+              <h1>이번 주 <em>랭킹</em></h1>
+              <p>최근 7일 동안 맞힌 문제 수를 기준으로 순위를 집계합니다.</p>
+            </div>
+            <button class="primary-button" @click="currentView = 'quiz'">오늘의 문제 풀기 <span>→</span></button>
+          </div>
+          <article class="dashboard-card ranking-page-card">
+            <div v-if="myWeeklyRanking" class="my-ranking">
+              <span>내 순위 <b>{{ myWeeklyRanking.rank }}위</b></span>
+              <span>{{ myWeeklyRanking.solvedCount }}문제 해결</span>
+              <span v-if="myWeeklyRanking.badge !== 'NONE'" :class="['badge', myWeeklyRanking.badge.toLowerCase()]">{{ badgeLabel(myWeeklyRanking.badge) }}</span>
+            </div>
+            <div class="ranking-list">
+              <div v-for="item in weeklyRankings" :key="item.userId" class="ranking-row" :class="{ current: item.userId === currentUser?.userId }">
+                <strong class="ranking-position">{{ item.rank }}</strong>
+                <span class="ranking-medal">{{ item.badge === 'GOLD' ? '🏆' : item.badge === 'SILVER' ? '🥈' : item.badge === 'BRONZE' ? '🥉' : '·' }}</span>
+                <div><b>{{ item.nickname }}</b><small>{{ item.solvedCount }}문제 해결 · 정답률 {{ round(item.accuracyRate) }}%</small></div>
+                <span v-if="item.badge !== 'NONE'" :class="['badge', item.badge.toLowerCase()]">{{ badgeLabel(item.badge) }}</span>
+              </div>
+              <p v-if="!weeklyRankings.length" class="dashboard-empty">이번 주 랭킹 데이터가 아직 없습니다.</p>
+            </div>
+          </article>
+        </section>
       </template>
     </main>
 
@@ -639,6 +674,19 @@ async function checkAnswer() {
 
 .ranking-card {
   grid-column: 1 / -1;
+}
+
+.ranking-page {
+  padding-top: 54px;
+}
+
+.ranking-page-content {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.ranking-page-card {
+  padding: 24px;
 }
 
 .my-ranking {
