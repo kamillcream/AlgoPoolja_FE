@@ -64,6 +64,8 @@ const recentProblems = computed(() => (attemptsPage.value?.content ?? dashboard.
 const wrongProblems = computed(() => wrongPage.value?.content ?? dashboard.value?.wrongQuizzes ?? [])
 const userNickname = computed(() => dashboard.value?.user?.nickname || '사용자')
 const weeklySolvedCount = computed(() => dashboard.value?.summary?.weeklySolvedCount ?? 0)
+const weeklyRankings = computed(() => dashboard.value?.weeklyRankings ?? [])
+const myWeeklyRanking = computed(() => dashboard.value?.myWeeklyRanking ?? null)
 
 const difficultyClass = computed(() => ({ '쉬움': 'easy', '보통': 'normal', '어려움': 'hard' })[difficulty.value])
 const languageLabel = computed(() => languages.find((item) => item.value === (quiz.value?.language || language.value))?.label || language.value)
@@ -88,6 +90,10 @@ function signed(value, suffix = '') {
 
 function difficultyLabel(value) {
   return ({ EASY: '쉬움', NORMAL: '보통', HARD: '어려움' })[value] || value
+}
+
+function badgeLabel(value) {
+  return ({ GOLD: 'GOLD', SILVER: 'SILVER', BRONZE: 'BRONZE', TOP_10: 'TOP 10' })[value] || ''
 }
 
 function formatAttemptedAt(value) {
@@ -506,6 +512,27 @@ async function checkAnswer() {
       </section>
 
       <section class="dashboard-grid">
+        <article class="dashboard-card ranking-card">
+          <div class="card-heading">
+            <div><span class="step-number">01</span><div><strong>주간 랭킹</strong><small>최근 7일 동안 맞힌 문제 기준</small></div></div>
+            <span class="card-note">TOP 10</span>
+          </div>
+          <div v-if="myWeeklyRanking" class="my-ranking">
+            <span>내 순위 <b>{{ myWeeklyRanking.rank }}위</b></span>
+            <span>{{ myWeeklyRanking.solvedCount }}문제 해결</span>
+            <span v-if="myWeeklyRanking.badge !== 'NONE'" :class="['badge', myWeeklyRanking.badge.toLowerCase()]">{{ badgeLabel(myWeeklyRanking.badge) }}</span>
+          </div>
+          <div class="ranking-list">
+            <div v-for="item in weeklyRankings" :key="item.userId" class="ranking-row" :class="{ current: item.userId === currentUser?.userId }">
+              <strong class="ranking-position">{{ item.rank }}</strong>
+              <span class="ranking-medal">{{ item.badge === 'GOLD' ? '🏆' : item.badge === 'SILVER' ? '🥈' : item.badge === 'BRONZE' ? '🥉' : '·' }}</span>
+              <div><b>{{ item.nickname }}</b><small>{{ item.solvedCount }}문제 해결 · 정답률 {{ round(item.accuracyRate) }}%</small></div>
+              <span v-if="item.badge !== 'NONE'" :class="['badge', item.badge.toLowerCase()]">{{ badgeLabel(item.badge) }}</span>
+            </div>
+            <p v-if="!weeklyRankings.length" class="dashboard-empty">이번 주 랭킹 데이터가 아직 없습니다.</p>
+          </div>
+        </article>
+
         <article class="dashboard-card progress-card">
           <div class="card-heading">
             <div><span class="step-number">01</span><div><strong>유형별 성취도</strong><small>최근 30일 학습 기록</small></div></div>
@@ -608,5 +635,93 @@ async function checkAnswer() {
 
 .answer-input input::placeholder {
   color: #666e79;
+}
+
+.ranking-card {
+  grid-column: 1 / -1;
+}
+
+.my-ranking {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: -4px 0 14px;
+  padding: 11px 13px;
+  color: #b8c0ca;
+  background: #111419;
+  border: 1px solid #2d333b;
+  border-radius: 6px;
+  font-size: .75rem;
+}
+
+.my-ranking b {
+  color: var(--bright);
+  font: 600 .9rem var(--mono);
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 28px 25px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 45px;
+  padding: 7px 10px;
+  color: #dce0e6;
+  background: #111419;
+  border: 1px solid #252b32;
+  border-radius: 5px;
+}
+
+.ranking-row.current {
+  border-color: #386149;
+  background: #14241b;
+}
+
+.ranking-position {
+  color: #aeb4bd;
+  text-align: center;
+  font: 600 .8rem var(--mono);
+}
+
+.ranking-medal {
+  font-size: 1rem;
+  text-align: center;
+}
+
+.ranking-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ranking-row small {
+  color: #858d99;
+  font-size: .66rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 7px;
+  border-radius: 4px;
+  font: 600 .6rem var(--mono);
+}
+
+.badge.gold { color: #241b05; background: #f6c453; }
+.badge.silver { color: #202329; background: #c7ced8; }
+.badge.bronze { color: #2b180c; background: #d98b55; }
+.badge.top_10 { color: #b9f8cf; background: #1e4d31; }
+
+@media(max-width:720px) {
+  .ranking-card { grid-column: auto; }
+  .my-ranking { flex-wrap: wrap; gap: 8px 14px; }
 }
 </style>
