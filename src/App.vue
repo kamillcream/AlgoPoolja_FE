@@ -464,13 +464,18 @@ async function checkAnswer() {
       </section>
 
       <section v-else class="empty-stage">
-        <div class="terminal-visual" aria-hidden="true">
-          <div class="terminal-bar"><i></i><i></i><i></i><span>challenge.py</span></div>
-          <pre><span class="muted">01</span> <b>def</b> solve(numbers):
-<span class="muted">02</span>     answer = <em>&lt;BLANK&gt;</em>
-<span class="muted">03</span>     <b>for</b> number <b>in</b> numbers:
-<span class="muted">04</span>         answer += number
-<span class="muted">05</span>     <b>return</b> answer</pre>
+        <div class="landing-preview">
+          <div class="preview-topline"><span class="eyebrow">AI GENERATED PREVIEW</span><span>DP · 보통</span></div>
+          <h2>연속 부분 배열의 최대 합</h2>
+          <p>배열에서 연속한 구간을 선택해 얻을 수 있는 최대 합을 구해보세요.</p>
+          <div class="preview-code">
+            <span class="muted">01</span> <b>def</b> solution(numbers):<br>
+            <span class="muted">02</span> &nbsp;&nbsp;current = <em>&lt;BLANK&gt;</em><br>
+            <span class="muted">03</span> &nbsp;&nbsp;best = numbers[<em>&lt;BLANK&gt;</em>]<br>
+            <span class="muted">04</span> &nbsp;&nbsp;<b>for</b> number <b>in</b> numbers[<em>&lt;BLANK&gt;</em>:]:<br>
+            <span class="muted">05</span> &nbsp;&nbsp;&nbsp;&nbsp;current = <em>&lt;BLANK&gt;</em>
+          </div>
+          <div class="preview-test"><span>예시</span><code>[-2, 3, -1, 5] → 7</code></div>
         </div>
         <div>
           <span class="eyebrow">AI GENERATED CHALLENGE</span>
@@ -623,6 +628,87 @@ async function checkAnswer() {
 </template>
 
 <style scoped>
+.landing-preview {
+  padding: 25px;
+  border: 1px solid #303640;
+  border-radius: 11px;
+  background: #111419;
+  box-shadow: 0 30px 80px #0008;
+  transform: perspective(1200px) rotateY(4deg);
+}
+
+.preview-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #7f8793;
+  font: .68rem var(--mono);
+}
+
+.preview-topline .eyebrow {
+  color: var(--bright);
+  font-size: .65rem;
+}
+
+.landing-preview h2 {
+  margin: 24px 0 10px;
+  color: #f1f4f2;
+  font-size: 1.35rem;
+  letter-spacing: -.04em;
+}
+
+.landing-preview > p {
+  margin: 0 0 20px;
+  color: #9ca3ad;
+  font-size: .8rem;
+  line-height: 1.6;
+}
+
+.preview-code {
+  padding: 17px;
+  border: 1px solid #252b32;
+  border-radius: 7px;
+  color: #d8dce3;
+  background: #0d1014;
+  font: .72rem/1.9 var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.preview-code b {
+  color: #c084fc;
+  font-weight: 500;
+}
+
+.preview-code em {
+  padding: 2px 4px;
+  color: #07110b;
+  background: var(--bright);
+  border-radius: 3px;
+  font-style: normal;
+}
+
+.preview-code .muted {
+  display: inline-block;
+  width: 24px;
+  color: #505762;
+}
+
+.preview-test {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: #727b88;
+  font-size: .7rem;
+}
+
+.preview-test code {
+  color: #b9f8cf;
+  font-family: var(--mono);
+}
+
 .brand-logo {
   width: 30px;
   height: 30px;
@@ -784,6 +870,7 @@ async function checkAnswer() {
 .badge.top_10 { color: #b9f8cf; background: #1e4d31; }
 
 @media(max-width:720px) {
+  .landing-preview { transform: none; }
   .ranking-card { grid-column: auto; }
   .my-ranking { flex-wrap: wrap; gap: 8px 14px; }
 }
