@@ -143,7 +143,10 @@ async function loadCurrentUser() {
   authLoading.value = true
   try {
     currentUser.value = await getCurrentUser()
-    if (['dashboard', 'ranking'].includes(currentView.value) && currentUser.value.authenticated) await loadDashboard()
+    if (currentUser.value.authenticated) {
+      if (['dashboard', 'ranking'].includes(currentView.value)) await loadDashboard()
+      else if (!quiz.value) await loadRandomQuiz()
+    }
   } catch (requestError) {
     currentUser.value = { authenticated: false }
     dashboardError.value = requestError.message
@@ -191,9 +194,33 @@ async function loadAllWrongQuizzes() {
 
 watch(currentView, (view) => {
   if (['dashboard', 'ranking'].includes(view) && currentUser.value?.authenticated && !dashboard.value && !dashboardLoading.value) loadDashboard()
+  if (view === 'quiz' && currentUser.value?.authenticated && !quiz.value && !loading.value) loadRandomQuiz()
 })
 
 onMounted(loadCurrentUser)
+
+async function loadRandomQuiz() {
+  loading.value = true
+  error.value = ''
+  result.value = null
+  showSolution.value = false
+  try {
+    const response = await apiFetch('/api/quizzes/random', {
+      headers: { Accept: 'application/json' },
+    })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.message || '문제를 불러오지 못했습니다.')
+    quiz.value = body
+    language.value = body.language || language.value
+    quizStartedAt.value = new Date().toISOString()
+    answers.value = Array.from({ length: body.blankCount }, () => '')
+    activeTab.value = 'problem'
+  } catch (requestError) {
+    error.value = requestError.message || '문제를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
 
 async function generateQuiz() {
   loading.value = true
