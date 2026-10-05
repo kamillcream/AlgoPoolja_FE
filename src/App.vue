@@ -22,8 +22,6 @@ const category = ref('전체')
 const difficulty = ref('보통')
 const language = ref('PYTHON')
 const quiz = ref(null)
-const landingPreview = ref(null)
-const landingLoading = ref(false)
 const answers = ref([])
 const loading = ref(false)
 const checking = ref(false)
@@ -148,8 +146,6 @@ async function loadCurrentUser() {
     if (currentUser.value.authenticated) {
       if (['dashboard', 'ranking'].includes(currentView.value)) await loadDashboard()
       else if (!quiz.value) await loadRandomQuiz()
-    } else if (currentView.value === 'quiz') {
-      await loadLandingPreview()
     }
   } catch (requestError) {
     currentUser.value = { authenticated: false }
@@ -202,19 +198,6 @@ watch(currentView, (view) => {
 })
 
 onMounted(loadCurrentUser)
-
-async function loadLandingPreview() {
-  landingLoading.value = true
-  try {
-    const response = await apiFetch('/api/quizzes/preview/random', {
-      headers: { Accept: 'application/json' },
-    })
-    const body = await response.json().catch(() => ({}))
-    if (response.ok) landingPreview.value = body
-  } finally {
-    landingLoading.value = false
-  }
-}
 
 async function loadRandomQuiz() {
   loading.value = true
@@ -507,15 +490,19 @@ async function checkAnswer() {
         </section>
       </section>
 
-      <section v-else-if="landingPreview" class="empty-stage">
+      <section v-else class="empty-stage">
         <div class="landing-preview">
-          <div class="preview-topline"><span class="eyebrow">SAVED CHALLENGE</span><span>{{ landingPreview.category }} · {{ landingPreview.difficulty }}</span></div>
-          <h2>{{ landingPreview.title }}</h2>
-          <p>{{ landingPreview.description }}</p>
-          <div class="preview-code"><code>{{ landingPreview.blankCode }}</code></div>
-          <div v-if="landingPreview.testcases?.length" class="preview-test">
-            <span>예시</span><code>{{ landingPreview.testcases[0].input }} → {{ landingPreview.testcases[0].output }}</code>
+          <div class="preview-topline"><span class="eyebrow">AI GENERATED PREVIEW</span><span>DP · 보통</span></div>
+          <h2>연속 부분 배열의 최대 합</h2>
+          <p>배열에서 연속한 구간을 선택해 얻을 수 있는 최대 합을 구해보세요.</p>
+          <div class="preview-code">
+            <span class="muted">01</span> <b>def</b> solution(numbers):<br>
+            <span class="muted">02</span> &nbsp;&nbsp;current = <em>&lt;BLANK&gt;</em><br>
+            <span class="muted">03</span> &nbsp;&nbsp;best = numbers[<em>&lt;BLANK&gt;</em>]<br>
+            <span class="muted">04</span> &nbsp;&nbsp;<b>for</b> number <b>in</b> numbers[<em>&lt;BLANK&gt;</em>:]:<br>
+            <span class="muted">05</span> &nbsp;&nbsp;&nbsp;&nbsp;current = <em>&lt;BLANK&gt;</em>
           </div>
+          <div class="preview-test"><span>예시</span><code>[-2, 3, -1, 5] → 7</code></div>
         </div>
         <div>
           <span class="eyebrow">AI GENERATED CHALLENGE</span>
@@ -523,10 +510,6 @@ async function checkAnswer() {
           <p>알고리즘 유형과 난이도를 선택하면 새로운 문제와 코드 블록 퀴즈를 생성합니다.</p>
           <button class="primary-button start-button" :disabled="authLoading" @click="startQuiz">{{ currentUser?.authenticated ? '첫 문제 생성하기' : 'Google 로그인 후 시작하기' }} <span>→</span></button>
         </div>
-      </section>
-      <section v-else class="loading-stage" aria-live="polite">
-        <div class="loader-orbit"><span></span></div>
-        <strong>{{ landingLoading ? '저장된 문제를 불러오고 있습니다' : '문제를 준비하고 있습니다' }}</strong>
       </section>
     </main>
 
@@ -716,13 +699,8 @@ async function checkAnswer() {
   color: #d8dce3;
   background: #0d1014;
   font: .72rem/1.9 var(--mono);
-  white-space: pre-wrap;
+  white-space: nowrap;
   overflow: hidden;
-}
-
-.preview-code code {
-  font: inherit;
-  color: inherit;
 }
 
 .preview-code b {
